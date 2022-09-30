@@ -138,11 +138,11 @@ def run_sequence(seq: Sequence, tracker: Tracker, debug=False, visdom_info=None)
 
     visdom_info = {} if visdom_info is None else visdom_info
 
+    print('Tracker: {} {} {} ,  Sequence: {}'.format(tracker.name, tracker.parameter_name, tracker.run_id, seq.name))
+
     if _results_exist() and not debug:
         print('FPS: {}'.format(-1))
         return
-
-    print('Tracker: {} {} {} ,  Sequence: {}'.format(tracker.name, tracker.parameter_name, tracker.run_id, seq.name))
 
     if debug:
         output = tracker.run_sequence(seq, debug=debug, visdom_info=visdom_info)
@@ -163,6 +163,7 @@ def run_sequence(seq: Sequence, tracker: Tracker, debug=False, visdom_info=None)
         num_frames = len(output['time'])
 
     print('FPS: {}'.format(num_frames / exec_time))
+    # _save_tracker_output(seq, tracker, output)
 
     if not debug:
         if seq.dataset == 'oxuva':

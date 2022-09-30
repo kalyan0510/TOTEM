@@ -23,6 +23,7 @@ class ToMP(BaseTracker):
         self.features_initialized = True
 
     def initialize(self, image, info: dict) -> dict:
+        # print(self.params.__dict__)
         # Initialize some stuff
         self.frame_num = 1
         if not self.params.has('device'):
@@ -94,6 +95,8 @@ class ToMP(BaseTracker):
         self.cls_weights_avg = None
 
         out = {'time': time.time() - tic}
+        # self.print_t_dict(self.params.__dict__, "SELF PARAMS")
+        # self.print_t_dict(self.__dict__)
         return out
 
     def clip_bbox_to_image_area(self, bbox, image, minwidth=10, minheight=10):
@@ -139,7 +142,28 @@ class ToMP(BaseTracker):
 
         return reg_targets_per_im
 
+    def print_t_dict(self, inp_dict, s="\nPRINTING SELF ATTBs"):
+        def str_t(x, y):
+            if y.dtype != torch.bool:
+                return f"[Tensor]{x}: {y.shape} , mean:{y.mean():.4f}, min:{y.min():.4f}, max:{y.max():.4f}, contiguous: {y.is_contiguous()}, has_grad: {y.requires_grad, y.grad_fn}"
+            else:
+                return f"[Tensor]{x}: {y.shape} , mean:-----, min:-----, max:-----, contiguous: {y.is_contiguous()}, has_grad: {y.requires_grad, y.grad_fn}"
+        print(s)
+        for k in inp_dict.keys():
+            # print(k, type(inp_dict[k]), inp_dict[k])
+            if torch.is_tensor(inp_dict[k]) and inp_dict[k].numel() > 100:
+                print(str_t(k, inp_dict[k]))
+            elif isinstance(inp_dict[k], TensorList):
+                for i, t in enumerate(inp_dict[k]):
+                    if torch.is_tensor(t):
+                        print(str_t(f"{k}[{i}]", t))
+                    else:
+                        print(f"{k}[{i}]: {inp_dict[k]}")
+            else:
+                print(f"{k}: {inp_dict[k]}")
+
     def track(self, image, info: dict = None) -> dict:
+        # print(self.params.__dict__)
         self.debug_info = {}
 
         self.frame_num += 1
@@ -175,6 +199,7 @@ class ToMP(BaseTracker):
             self.target_scales.append(self.target_scale)
         else:
             if self.params.get('search_area_rescaling_at_occlusion', False):
+                # sets target scales to mean of previously bigger target scales in certain window
                 self.search_area_rescaling()
 
         # ------- UPDATE ------- #
@@ -213,7 +238,7 @@ class ToMP(BaseTracker):
 
         if self.visdom is not None:
             self.visualize_raw_results(score_map)
-
+        # self.print_t_dict(self.__dict__)
         return out
 
     def visualize_raw_results(self, score_map):
@@ -265,6 +290,7 @@ class ToMP(BaseTracker):
             target_scales = torch.tensor(self.target_scales)[-max_history:]
             target_scales = target_scales[target_scales >= target_scales[-1]]  # only boxes that are bigger than the `not found`
             target_scales = target_scales[-num_scales:]  # look as many samples into past as not found endures.
+            # so we dont look at all the scales but the average of prev. bigger scales. So, we work only on one scale at a time
             self.target_scale = torch.mean(target_scales) # average bigger boxes from the past
 
     def get_sample_location(self, sample_coord):
@@ -445,6 +471,7 @@ class ToMP(BaseTracker):
             self.init_sample_scale = self.target_scale
             global_shift = torch.zeros(2)
 
+        # init_sample_pos: *
         self.init_sample_pos = self.pos.round()
 
         # Compute augmentation size
@@ -546,6 +573,7 @@ class ToMP(BaseTracker):
     def update_memory(self, sample_x: TensorList, sample_y: TensorList, target_box, learning_rate = None):
         # Update weights and get replace ind
         replace_ind = self.update_sample_weights(self.sample_weights, self.previous_replace_ind, self.num_stored_samples, self.num_init_samples, learning_rate)
+        # print("replace_ind", replace_ind)
         self.previous_replace_ind = replace_ind
 
         # Update sample and label memory
@@ -582,6 +610,7 @@ class ToMP(BaseTracker):
                 if num_samp < sw.shape[0]:
                     r_ind = num_samp
                 else:
+                    # select the sample index with least score (but except from )
                     _, r_ind = torch.min(sw[s_ind:], 0)
                     r_ind = r_ind.item() + s_ind
 
@@ -657,6 +686,8 @@ class ToMP(BaseTracker):
             self.output_window = self.output_window.squeeze(0)
 
         # Get target boxes for the different augmentations
+        # target boxes are (memory_sz, 4) shaped u,l,h,w values representing bbox in Δ scale
+        # this fill up self.target_boxes
         target_boxes = self.init_target_boxes()
 
         # Get target labels for the different augmentations

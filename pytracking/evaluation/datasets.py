@@ -23,7 +23,7 @@ dataset_dict = dict(
     lasot_train=DatasetInfo(module=pt % "lasot", class_name="LaSOTTrainSequencesDataset", kwargs=dict()),
     lasot_extension_subset=DatasetInfo(module=pt % "lasotextensionsubset", class_name="LaSOTExtensionSubsetDataset",
                                        kwargs=dict()),
-    lasotvos=DatasetInfo(module=pt % "lasot", class_name="LaSOTDataset", kwargs=dict(vos_mode=True)),
+    totb=DatasetInfo(module=pt % "totb", class_name="TOTBDataset", kwargs=dict()),
     oxuva_dev=DatasetInfo(module=pt % "oxuva", class_name="OxUvADataset", kwargs=dict(split='dev')),
     oxuva_test=DatasetInfo(module=pt % "oxuva", class_name="OxUvADataset", kwargs=dict(split='test')),
     avist=DatasetInfo(module=pt % "avist", class_name="AVisTDataset", kwargs=dict()),

@@ -133,6 +133,8 @@ class KYS(BaseTracker):
         test_x = self.get_classification_features(backbone_feat)
 
         # Location of sample
+        #sample_coords contains the ulhw of search patches from input image
+        # this method simply computes the center and scale ratio
         sample_pos, sample_scales = self.get_sample_location(sample_coords)
 
         # Compute classification scores
@@ -271,6 +273,7 @@ class KYS(BaseTracker):
     def get_response_prediction(self, backbone_feat, scores_dimp):
         motion_feat = self.get_motion_features(backbone_feat)
 
+        # feat, state, im, label, patch
         prev_motion_feat, prev_motion_state_vector, prev_test_patch, prev_label, box_patch = self.prev_state_handler.get_data()
 
         box_patch = box_patch.to(prev_motion_feat.device)

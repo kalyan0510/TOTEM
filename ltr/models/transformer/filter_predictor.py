@@ -47,6 +47,9 @@ class FilterPredictor(nn.Module):
         return pos.reshape(nframes, nseq, -1, h, w)
 
     def predict_filter(self, train_feat, test_feat, train_label, train_ltrb_target, *args, **kwargs):
+        def printv(x, y):
+            print(f"{x}: {y.shape} , mean:{y.mean():.4f}, min:{y.min():.4f}, max:{y.max():.4f}, std:{y.std():.4f}")
+
         #train_label size guess: Nf_tr, Ns, H, W.
         if train_feat.dim() == 4:
             train_feat = train_feat.unsqueeze(1)
@@ -59,6 +62,9 @@ class FilterPredictor(nn.Module):
 
         test_pos = self.get_positional_encoding(test_feat) # Nf_te, Ns, C, H, W
         train_pos = self.get_positional_encoding(train_feat) # Nf_tr, Ns, C, H, W
+        # printv("FP:train_feat", train_feat)
+        # printv("FP:train_pos", train_pos)
+
 
         test_feat_seq = test_feat.permute(1, 2, 0, 3, 4).flatten(2).permute(2, 0, 1) # Nf_te*H*W, Ns, C
         train_feat_seq = train_feat.permute(1, 2, 0, 3, 4).flatten(2).permute(2, 0, 1) # Nf_tr*H*W, Ns, C
@@ -71,7 +77,13 @@ class FilterPredictor(nn.Module):
         fg_token = self.query_embed_fg.weight.reshape(1, 1, -1)
         train_label_enc = fg_token * train_label_seq
 
+        # printv('train_ltrb_target_seq_T', train_ltrb_target_seq_T)
         train_ltrb_target_enc = self.box_encoding(train_ltrb_target_seq_T).permute(2,0,1) # Nf_tr*H*H,Ns,C
+        #
+        # printv('train_feat_seq', train_feat_seq)
+        # printv('train_label_enc', train_label_enc)
+        # printv('train_ltrb_target_enc', train_ltrb_target_enc)
+        # printv('test_feat_seq', test_feat_seq)
 
         if self.use_test_frame_encoding:
             test_token = self.query_embed_test.weight.reshape(1, 1, -1)
@@ -91,6 +103,8 @@ class FilterPredictor(nn.Module):
 
     def predict_cls_bbreg_filters_parallel(self, train_feat, test_feat, train_label, num_gth_frames, train_ltrb_target, *args, **kwargs):
         # train_label size guess: Nf_tr, Ns, H, W.
+        # classifier and regressor both heads require differently attended transformer outputs. For Regression the
+        # ground truth features are masked
         if train_feat.dim() == 4:
             train_feat = train_feat.unsqueeze(1)
         if test_feat.dim() == 4:
@@ -131,6 +145,8 @@ class FilterPredictor(nn.Module):
 
         pos = torch.cat([train_pos, test_pos], dim=0)
 
+        # in the other batch (which is duplicated above), the mask prevents attention on some embeddings
+        # this mask prevents attention on the ground truth frame in train images
         src_key_padding_mask = torch.zeros(feat.shape[1], feat.shape[0]).bool()
         src_key_padding_mask[1, num_gth_frames*H*W:-h*w] = 1.
         src_key_padding_mask = src_key_padding_mask.bool().to(feat.device)

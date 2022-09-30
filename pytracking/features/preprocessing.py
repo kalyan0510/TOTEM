@@ -22,6 +22,8 @@ def sample_patch_transformed(im, pos, scale, image_sz, transforms, is_mask=False
     """
 
     # Get image patche
+    # image_sz(Δ) * scale(Δ->*): this is the area to sample from input image
+    # sample_patch(image, center position, sample size, output size)
     im_patch, _ = sample_patch(im, pos, scale*image_sz, image_sz, is_mask=is_mask)
 
     # Apply transforms
@@ -95,17 +97,21 @@ def sample_patch(im: torch.Tensor, pos: torch.Tensor, sample_sz: torch.Tensor, o
     sz = sample_sz.float() / df     # new size
 
     # Do downsampling
+    # after downsampling we can directly use var sz to crop on im2. both sz and im2 are downscales with df
     if df > 1:
         os = posl % df              # offset
         posl = (posl - os) / df     # new position
         im2 = im[..., os[0].item()::df, os[1].item()::df]   # downsample
     else:
         im2 = im
+    # if df is 2, an im of shape 720x1280 is sampled to a 360x640 size
+
 
     # compute size to crop
     szl = torch.max(sz.round(), torch.Tensor([2])).long()
 
     # Extract top and bottom coordinates
+    # keep in mind that posl is modified w.r.t to ds factor
     tl = posl - (szl - 1) / 2
     br = posl + szl/2 + 1
 
@@ -125,6 +131,7 @@ def sample_patch(im: torch.Tensor, pos: torch.Tensor, sample_sz: torch.Tensor, o
         # im_patch = im2[...,tl[0].item():br[0].item(),tl[1].item():br[1].item()]
 
     # Get image patch
+    # padding(left right top botton)
     pad = (-tl[1].int().item(), br[1].int().item() - im2.shape[3],
            -tl[0].int().item(), br[0].int().item() - im2.shape[2])
 
@@ -145,4 +152,5 @@ def sample_patch(im: torch.Tensor, pos: torch.Tensor, sample_sz: torch.Tensor, o
     else:
         im_patch = F.interpolate(im_patch, output_sz.long().tolist(), mode='nearest')
 
+    # patch coords :  tlbr values for cropped patch, in the input image dimesions
     return im_patch, patch_coord

@@ -1,6 +1,6 @@
 import importlib
 import os
-
+import platform
 
 class EnvSettings:
     def __init__(self):
@@ -55,14 +55,21 @@ def create_default_local_file():
 
 
 def env_settings():
-    env_module_name = 'pytracking.evaluation.local'
+    my_system = platform.uname()
+    env_module_name = f'pytracking.evaluation.local_{my_system.node}'
     try:
         env_module = importlib.import_module(env_module_name)
         return env_module.local_env_settings()
     except:
-        env_file = os.path.join(os.path.dirname(__file__), 'local.py')
+        try:
+            print(f"Did not find machine specific {env_module_name}, so using common local.py")
+            env_module_name = 'pytracking.evaluation.local'
+            env_module = importlib.import_module(env_module_name)
+            return env_module.local_env_settings()
+        except:
+            env_file = os.path.join(os.path.dirname(__file__), 'local.py')
 
-        # Create a default file
-        create_default_local_file()
-        raise RuntimeError('YOU HAVE NOT SETUP YOUR local.py!!!\n Go to "{}" and set all the paths you need. '
-                           'Then try to run again.'.format(env_file))
+            # Create a default file
+            create_default_local_file()
+            raise RuntimeError('YOU HAVE NOT SETUP YOUR local.py!!!\n Go to "{}" and set all the paths you need. '
+                               'Then try to run again.'.format(env_file))

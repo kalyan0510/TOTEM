@@ -30,7 +30,10 @@ def run_tracker(tracker_name, tracker_param, run_id=None, dataset_name='otb', se
     dataset = get_dataset(dataset_name)
 
     if sequence is not None:
-        dataset = [dataset[sequence]]
+        if isinstance(sequence, list):
+            dataset = [dataset[s] for s in sequence]
+        else:
+            dataset = [dataset[sequence]]
 
     trackers = [Tracker(tracker_name, tracker_param, run_id)]
 
@@ -55,7 +58,10 @@ def main():
     try:
         seq_name = int(args.sequence)
     except:
-        seq_name = args.sequence
+        if ':' in args.sequence:
+            seq_name = list(range(*list(map(int, args.sequence.split(':')))))
+        else:
+            seq_name = args.sequence
 
     run_tracker(args.tracker_name, args.tracker_param, args.runid, args.dataset_name, seq_name, args.debug,
                 args.threads, {'use_visdom': args.use_visdom, 'server': args.visdom_server, 'port': args.visdom_port})

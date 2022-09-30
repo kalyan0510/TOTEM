@@ -59,12 +59,12 @@ def load_network(network_dir=None, checkpoint=None, constructor_fun_name=None, c
         if checkpoint_list:
             checkpoint_path = checkpoint_list[-1]
         else:
-            raise Exception('No matching checkpoint file found')
+            raise Exception(f'No matching checkpoint file found at {net_path}')
     elif isinstance(checkpoint, int):
         # Checkpoint is the epoch number
         checkpoint_list = sorted(net_path.glob('*_ep{:04d}.pth.tar'.format(checkpoint)))
         if not checkpoint_list or len(checkpoint_list) == 0:
-            raise Exception('No matching checkpoint file found')
+            raise Exception(f'No matching checkpoint file found at {net_path} ')
         if len(checkpoint_list) > 1:
             raise Exception('Multiple matching checkpoint files found')
         else:

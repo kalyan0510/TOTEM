@@ -9,6 +9,8 @@ from collections import OrderedDict
 from .base_video_dataset import BaseVideoDataset
 from ltr.data.image_loader import jpeg4py_loader
 from ltr.admin.environment import env_settings
+import pickle
+from tqdm import tqdm
 
 
 class Got10k(BaseVideoDataset):
@@ -82,7 +84,19 @@ class Got10k(BaseVideoDataset):
         return True
 
     def _load_meta_info(self):
-        sequence_meta_info = {s: self._read_meta(os.path.join(self.root, s)) for s in self.sequence_list}
+        try:
+            with open('got10k_metadata.pickle', 'rb') as f:
+                indexed_metadata = pickle.load(f)
+        except:
+            indexed_metadata = {}
+        # print(indexed_metadata)
+        # print([s in indexed_metadata.keys() for s in self.sequence_list])
+        print(f"GOT10k indexed sequences: {len(indexed_metadata.keys())}")
+
+        sequence_meta_info = {s: indexed_metadata[s] if s in indexed_metadata.keys() else self._read_meta(os.path.join(self.root, s)) for s in tqdm(self.sequence_list)}
+        indexed_metadata = indexed_metadata | sequence_meta_info
+        with open('got10k_metadata.pickle', 'wb') as f:
+            pickle.dump(indexed_metadata, f, pickle.HIGHEST_PROTOCOL)
         return sequence_meta_info
 
     def _read_meta(self, seq_path):

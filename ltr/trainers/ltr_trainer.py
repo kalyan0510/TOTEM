@@ -41,6 +41,19 @@ class LTRTrainer(BaseTrainer):
 
         self.freeze_backbone_bn_layers = freeze_backbone_bn_layers
 
+    def save_data_to_file(self, data, i):
+        dir_path = os.path.join(self.settings.env.tensorboard_dir, self.settings.project_path)
+        dir_path = os.path.join(dir_path, 'data_inp/')
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        file_path = os.path.join(dir_path, f'data_{i}.pt')
+        torch.save(data, file_path)
+        print("Successfully saved data inp &/| output to "+file_path)
+
+    def _print_data(self, data):
+        for k in data.keys():
+            print(k, data[k].shape if isinstance(data[k], torch.Tensor) else data[k])
+
     def _set_default_settings(self):
         # Dict of all default values
         default = {'print_interval': 10,
@@ -63,28 +76,46 @@ class LTRTrainer(BaseTrainer):
 
         self._init_timing()
 
+        # print("Trying to get data and act over it")
+        # iterate over all batches provided by a loader
+        loading_starts = time.time()
         for i, data in enumerate(loader, 1):
+            loading_time = time.time() - loading_starts
+            # self._print_data(data)
+            # self.save_data_to_file(data, i)
+            moving_starts = time.time()
+            # print("Moving data to GPU")
             # get inputs
             if self.move_data_to_gpu:
                 data = data.to(self.device)
+                print(f"Data successfully put on the {self.device} device")
+            moving_time = time.time() - moving_starts
 
             data['epoch'] = self.epoch
             data['settings'] = self.settings
-
+            # print("Acting on data")
+            acting_starts = time.time()
             # forward pass
             loss, stats = self.actor(data)
-
+            acting_time = time.time() - acting_starts
             # backward pass and update weights
+            optim_starts = time.time()
             if loader.training:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                self.optimizer.zero_grad()
+            optim_time = time.time() - optim_starts
+            # print("priniting stats")
 
+            stats.update({'sample_loading_time': loading_time/loader.batch_size, 'device_batch_transfer_time': moving_time/loader.batch_size,
+                          'forward_time': acting_time/loader.batch_size, 'optimization_step_time': optim_time/loader.batch_size})
             # update statistics
             self._update_stats(stats, loader.batch_size, loader)
 
             # print statistics
             self._print_stats(i, loader, loader.batch_size)
+            loading_starts = time.time()
 
     def train_epoch(self):
         """Do one epoch for each loader."""
@@ -119,9 +150,10 @@ class LTRTrainer(BaseTrainer):
         if i % self.settings.print_interval == 0 or i == loader.__len__():
             print_str = '[%s: %d, %d / %d] ' % (loader.name, self.epoch, i, loader.__len__())
             print_str += 'FPS: %.1f (%.1f)  ,  ' % (average_fps, batch_fps)
-            for name, val in self.stats[loader.name].items():
+            for k in sorted(self.stats[loader.name].keys()):
+                name, val = k, self.stats[loader.name][k]
                 if (self.settings.print_stats is None or name in self.settings.print_stats) and hasattr(val, 'avg'):
-                    print_str += '%s: %.5f  ,  ' % (name, val.avg)
+                    print_str += '%s: %.5f (%.5f)  ,  ' % (name, val.avg, val.val)
             print(print_str[:-5])
 
     def _stats_new_epoch(self):

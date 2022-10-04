@@ -1,3 +1,5 @@
+import platform
+
 from pytracking.utils import TrackerParams
 from pytracking.features.net_wrappers import NetWithBackbone
 
@@ -13,6 +15,14 @@ def parameters():
     params.visualization = False
     params.multiobj_mode = 'parallel'
     params.use_gpu = True
+    if platform.uname().node == 'kalyans-galaxybook-pro':
+        params.debug = 1
+        params.visualization = True
+        params.use_gpu = False
+    else:
+        params.debug = 0
+        params.visualization = False
+        params.use_gpu = True
 
     ##########################################
     # Bounding box init network

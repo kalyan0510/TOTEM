@@ -701,6 +701,8 @@ class ToMP(BaseTracker):
         self.init_memory(TensorList([x]))
 
     def visdom_draw_tracking(self, image, box, segmentation=None):
+        if isinstance(box[0], list):
+            box = box[0]
         if hasattr(self, 'search_area_box'):
                 self.visdom.register((image, box, self.search_area_box), 'Tracking', 1, 'Tracking')
         else:

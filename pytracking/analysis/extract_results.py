@@ -128,6 +128,7 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
         # Load anno
         anno_bb = torch.tensor(seq.ground_truth_rect)
         target_visible = torch.tensor(seq.target_visible, dtype=torch.uint8) if seq.target_visible is not None else None
+        seq_iou_data = {trk.parameter_name: [] for trk in trackers}
         for trk_id, trk in enumerate(trackers):
             # Load results
             base_results_path = '{}/{}'.format(trk.results_dir, seq.name)
@@ -147,7 +148,7 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
                 pred_bb, anno_bb, seq.dataset, target_visible)
 
             avg_overlap_all[seq_id, trk_id] = err_overlap[valid_frame].mean()
-
+            seq_iou_data[trk.parameter_name].append(torch.tensor(err_overlap))
             if exclude_invalid_frames:
                 seq_length = valid_frame.long().sum()
             else:
@@ -159,11 +160,15 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
             ave_success_rate_plot_overlap[seq_id, trk_id, :] = (err_overlap.view(-1, 1) > threshold_set_overlap.view(1, -1)).sum(0).float() / seq_length
             ave_success_rate_plot_center[seq_id, trk_id, :] = (err_center.view(-1, 1) <= threshold_set_center.view(1, -1)).sum(0).float() / seq_length
             ave_success_rate_plot_center_norm[seq_id, trk_id, :] = (err_center_normalized.view(-1, 1) <= threshold_set_center_norm.view(1, -1)).sum(0).float() / seq_length
+        for trk in trackers:
+            print( f"results/iou_data/{trk.parameter_name}_{seq.name}", len(seq_iou_data[trk.parameter_name]), len(seq_iou_data[trk.parameter_name][0]))
+            torch.save(seq_iou_data[trk.parameter_name], f"results/iou_data/{trk.parameter_name}_{seq.name}")
 
     if verbose: print('\n\nComputed results over {} / {} sequences'.format(valid_sequence.long().sum().item(), valid_sequence.shape[0]))
 
     # Prepare dictionary for saving data
     seq_names = [s.name for s in dataset]
+    seq_lengths = [len(s.frames) for s in dataset]
     tracker_names = [{'name': t.name, 'param': t.parameter_name, 'run_id': t.run_id, 'disp_name': t.display_name}
                      for t in trackers]
 
@@ -175,7 +180,8 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
                  'avg_overlap_all': avg_overlap_all.tolist(),
                  'threshold_set_overlap': threshold_set_overlap.tolist(),
                  'threshold_set_center': threshold_set_center.tolist(),
-                 'threshold_set_center_norm': threshold_set_center_norm.tolist()}
+                 'threshold_set_center_norm': threshold_set_center_norm.tolist(),
+                 'sequnece_num_frames': seq_lengths}
 
     with open(result_plot_path + '/eval_data.pkl', 'wb') as fh:
         pickle.dump(eval_data, fh)

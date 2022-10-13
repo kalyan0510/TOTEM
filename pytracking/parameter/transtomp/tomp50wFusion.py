@@ -5,7 +5,6 @@ import torch
 from ltr.external.Trans2Seg.segmentron.models.model_zoo import get_segmentation_model
 from pytracking.utils import TrackerParams
 from pytracking.features.net_wrappers import NetWithBackbone
-from ltr.external.Trans2Seg.segmentron.config import cfg
 from ltr.external.Trans2Seg.segmentron.utils.default_setup import default_setup
 
 def parameters():
@@ -62,7 +61,7 @@ def parameters():
     params.conf_ths = 0.9
     params.search_area_rescaling_at_occlusion = True
 
-    params.net = NetWithBackbone(net_path='tomp50.pth.tar', use_gpu=params.use_gpu)
+    params.net = NetWithBackbone(net_path='ToMPnet_with_Trans_Fusion_ep0031.pth.tar', use_gpu=params.use_gpu)
 
     params.vot_anno_conversion_type = 'preserve_area'
 
@@ -71,10 +70,10 @@ def parameters():
 
     # cfg.update_from_file('../ltr/external/Trans2Seg/configs/trans10kv2/trans2seg/trans2seg_medium.yaml')
     # # cfg.update_from_list(args.opts)
-    # cfg.PHASE = 'test'
-    # # cfg.ROOT_PATH = root_path
-    # cfg.check_and_freeze()
-    # device = torch.device('cuda' if params.use_gpu else 'cpu')
-    # params.trans2seg = get_segmentation_model().to(device)
+    # # cfg.PHASE = 'test'
+    # # # cfg.ROOT_PATH = root_path
+    # # cfg.check_and_freeze()
+    # # device = torch.device('cuda' if params.use_gpu else 'cpu')
+    # # params.trans2seg = get_segmentation_model().to(device)
 
     return params

@@ -179,7 +179,8 @@ class TransToMP(BaseTracker):
                                                                       self.target_scale * self.params.scale_factors,
                                                                       self.img_sample_sz)
         # Extract classification features
-        test_x = self.get_backbone_head_feat(backbone_feat)
+        # test_x = self.get_backbone_head_feat(backbone_feat)
+        test_x = backbone_feat
 
         # Location of sample
         sample_pos, sample_scales = self.get_sample_location(sample_coords)
@@ -216,9 +217,14 @@ class TransToMP(BaseTracker):
             target_box = self.get_iounet_box(self.pos, self.target_sz, sample_pos[scale_ind,:], sample_scales[scale_ind])
             train_y = self.get_label_function(self.pos, sample_pos[scale_ind, :], sample_scales[scale_ind]).to(
                 self.params.device)
+            if self.visdom is not None:
+                self.last_train_box = target_box
+                self.debug_info['train_frame_number'] = getattr(self, 'train_frame_id', 'N/A')
+                self.last_train_img = im_patches[0]
 
             # Update the classifier model
             self.update_memory(TensorList([train_x]), train_y, target_box, learning_rate)
+
 
         score_map = s[scale_ind, ...]
 
@@ -237,7 +243,7 @@ class TransToMP(BaseTracker):
                'object_presence_score': score_map.max().cpu().item()}
 
         if self.visdom is not None:
-            self.visualize_raw_results(score_map)
+            self.visualize_raw_results(score_map )
         # self.print_t_dict(self.__dict__)
         return out
 
@@ -247,6 +253,11 @@ class TransToMP(BaseTracker):
         self.visdom.register(torch.tensor(self.logging_dict['max_score']), 'lineplot', 3, 'Max Score')
         self.debug_info['max_score'] = score_map.max().item()
         self.visdom.register(self.debug_info, 'info_dict', 1, 'Status')
+        if self.last_train_img is not None and self.last_train_box is not None:
+            # self.visdom.register(self.last_train_img[0], 'image', 2, 'im train 1')
+            self.visdom.register((self.last_train_img.permute(1,2,0).numpy(), self.last_train_box), 'Tracking', 1, 'im train 1')
+        if self.init_frame is not None and self.init_target_box is not None:
+            self.visdom.register((self.init_frame, self.init_target_box), 'Tracking', 1, 'im train 0')
 
     def direct_bbox_regression(self, bbox_preds, sample_coords, score_loc, scores_raw):
         shifts_x = torch.arange(
@@ -312,12 +323,14 @@ class TransToMP(BaseTracker):
             target_labels = self.target_labels[0][:self.num_stored_samples[0], ...]
             target_boxes = self.target_boxes[:self.num_stored_samples[0], :]
 
-            test_feat = self.net.head.extract_head_feat(sample_x)
-            train_feat = self.net.head.extract_head_feat(train_samples)
+            # test_feat = self.net.head.extract_head_feat(sample_x)
+            # train_feat = self.net.head.extract_head_feat(train_samples)
+            # test_feat = sample_x
+            # train_feat = train_samples
 
             train_ltrb = self.encode_bbox(target_boxes)
             cls_weights, bbreg_weights, cls_test_feat_enc, bbreg_test_feat_enc = \
-                self.net.head.get_filter_and_features_in_parallel(train_feat, test_feat, num_gth_frames=self.num_gth_frames,
+                self.net.head.get_filter_and_features_in_parallel(train_samples, sample_x, num_gth_frames=self.num_gth_frames,
                                                                   train_label=target_labels, train_ltrb_target=train_ltrb)
 
             # fuse encoder and decoder features to one feature map
@@ -441,8 +454,21 @@ class TransToMP(BaseTracker):
                                                            mode=self.params.get('border_mode', 'replicate'),
                                                            max_scale_change=self.params.get('patch_max_scale_change', None))
         with torch.no_grad():
-            backbone_feat = self.net.extract_backbone(im_patches)
+            # extract resnet l3 features
+            backbone_feat = self.extract_fused_feature(im_patches) #self.net.extract_backbone(im_patches)
+            # c1, c2, c3, c4 = self.params.trans2seg.get_resnet_features(im_patches)
+            # c3 = self.params.trans2seg.get_encoder_features(im_patches)
+            # backbone_feat = {'layer3': c3}
         return backbone_feat, patch_coords, im_patches
+
+
+    def extract_fused_feature(self, im_patches):
+        # print(im_patches.device)
+        backbone_feat = self.net.extract_backbone(im_patches)
+        res_feat = self.net.head.extract_head_feat(self.get_backbone_head_feat(backbone_feat))
+        tras_feat = self.net.extract_trans_feat(im_patches)
+        return self.net.head.filter_predictor.fusion_module(res_feat.unsqueeze(0), tras_feat.unsqueeze(0)).squeeze(0)
+        # return res_feat
 
     def get_backbone_head_feat(self, backbone_feat):
         with torch.no_grad():
@@ -512,11 +538,15 @@ class TransToMP(BaseTracker):
 
         # Extract augmented image patches
         im_patches = sample_patch_transformed(im, self.init_sample_pos, self.init_sample_scale, aug_expansion_sz, self.transforms)
-
+        if self.visdom is not None:
+            self.init_frame = im_patches[0].permute(1,2,0).numpy()
         # Extract initial backbone features
         with torch.no_grad():
-            init_backbone_feat = self.net.extract_backbone(im_patches)
-
+            # extract resnet l3 features
+            init_backbone_feat = self.extract_fused_feature(im_patches)
+            # c1, c2, c3, c4 = self.params.trans2seg.get_resnet_features(im_patches)
+            # c3 = self.params.trans2seg.get_encoder_features(im_patches)
+            # init_backbone_feat = {'layer3': c3}
         return init_backbone_feat
 
     def init_target_boxes(self):
@@ -587,6 +617,7 @@ class TransToMP(BaseTracker):
         self.target_boxes[replace_ind[0],:] = target_box
 
         self.num_stored_samples += 1
+        self.train_frame_id = self.frame_num
 
     def update_sample_weights(self, sample_weights, previous_replace_ind, num_stored_samples, num_init_samples, learning_rate = None):
         # Update weights and get index to replace
@@ -662,7 +693,8 @@ class TransToMP(BaseTracker):
 
     def init_classifier(self, init_backbone_feat):
         # Get classification features
-        x = self.get_backbone_head_feat(init_backbone_feat)
+        # x = self.get_backbone_head_feat(init_backbone_feat)
+        x = init_backbone_feat
 
         # Add the dropout augmentation here, since it requires extraction of the classification features
         if 'dropout' in self.params.augmentation and self.params.get('use_augmentation', True):
@@ -689,7 +721,8 @@ class TransToMP(BaseTracker):
         # target boxes are (memory_sz, 4) shaped u,l,h,w values representing bbox in Δ scale
         # this fill up self.target_boxes
         target_boxes = self.init_target_boxes()
-
+        if self.visdom is not None:
+            self.init_target_box = target_boxes[0]
         # Get target labels for the different augmentations
         self.init_target_labels(TensorList([x]))
 

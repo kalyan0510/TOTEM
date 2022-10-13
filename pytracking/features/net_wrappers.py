@@ -73,3 +73,7 @@ class NetWithBackbone(NetWrapper):
         Expects a float tensor image with pixel range [0, 255]."""
         im = self.preprocess_image(im)
         return self.net.extract_backbone_features(im)
+
+    def extract_trans_feat(self, im):
+        im = self.preprocess_image(im)
+        return self.net.trans_feature_extractor.get_encoder_features(im)

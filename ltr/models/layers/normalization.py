@@ -15,7 +15,7 @@ class InstanceL2Norm(nn.Module):
     def forward(self, input):
         if self.size_average:
             return input * (self.scale * ((input.shape[1] * input.shape[2] * input.shape[3]) / (
-                        torch.sum((input * input).view(input.shape[0], 1, 1, -1), dim=3, keepdim=True) + self.eps)).sqrt())
+                        torch.sum((input * input).reshape(input.shape[0], 1, 1, -1), dim=3, keepdim=True) + self.eps)).sqrt())
         else:
             return input * (self.scale / (torch.sum((input * input).view(input.shape[0], 1, 1, -1), dim=3, keepdim=True) + self.eps).sqrt())
 

@@ -1,6 +1,7 @@
 import importlib
 import os
 from collections import OrderedDict
+import platform
 
 
 def create_default_local_file():
@@ -45,12 +46,19 @@ def create_default_local_file():
 
 
 def env_settings():
-    env_module_name = 'ltr.admin.local'
+    my_system = platform.uname()
+    env_module_name = f'ltr.admin.local_{my_system.node}'
     try:
         env_module = importlib.import_module(env_module_name)
         return env_module.EnvironmentSettings()
     except:
-        env_file = os.path.join(os.path.dirname(__file__), 'local.py')
+        try:
+            print(f"[LTR] Did not find machine specific {env_module_name}, so using common local.py")
+            env_module_name = 'ltr.admin.local'
+            env_module = importlib.import_module(env_module_name)
+            return env_module.EnvironmentSettings()
+        except:
+            env_file = os.path.join(os.path.dirname(__file__), 'local.py')
 
-        create_default_local_file()
-        raise RuntimeError('YOU HAVE NOT SETUP YOUR local.py!!!\n Go to "{}" and set all the paths you need. Then try to run again.'.format(env_file))
+            create_default_local_file()
+            raise RuntimeError('YOU HAVE NOT SETUP YOUR local.py!!!\n Go to "{}" and set all the paths you need. Then try to run again.'.format(env_file))

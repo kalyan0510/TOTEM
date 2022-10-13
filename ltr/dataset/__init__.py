@@ -1,4 +1,5 @@
 from .lasot import Lasot
+from .totb import Totb
 from .lasotvos import LasotVOS
 from .got10k import Got10k
 from .got10kvos import Got10kVOS

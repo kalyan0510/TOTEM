@@ -41,10 +41,10 @@ def run_training(train_module, train_name, execution_name=None, cudnn_benchmark=
 
 
 def main():
-    print("Num devices: ", torch.cuda.device_count())
-    print("Mem info: ", torch.tensor(torch.cuda.mem_get_info())/(1024**3))
-    print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
-    print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
+    # print("Num devices: ", torch.cuda.device_count())
+    # print("Mem info: ", torch.tensor(torch.cuda.mem_get_info())/(1024**3))
+    # print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+    # print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
     parser = argparse.ArgumentParser(description='Run a train scripts in train_settings.')
     parser.add_argument('train_module', type=str, help='Name of module in the "train_settings/" folder.')
     parser.add_argument('train_name', type=str, help='Name of the train settings file.')

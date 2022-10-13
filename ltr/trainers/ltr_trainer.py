@@ -13,9 +13,15 @@ def freeze_batchnorm_layers(net):
         if isinstance(module, nn.BatchNorm2d):
             module.eval()
 
+def freeze_everything_except_fusion_module(actor):
+    for module in actor.net.modules():
+        module.eval()
+    for module in actor.net.head.filter_predictor.fusion_module.modules():
+        module.train()
 
 class LTRTrainer(BaseTrainer):
-    def __init__(self, actor, loaders, optimizer, settings, lr_scheduler=None, freeze_backbone_bn_layers=False):
+    def __init__(self, actor, loaders, optimizer, settings, lr_scheduler=None, freeze_backbone_bn_layers=False,
+                 load_ignore_fields=[]):
         """
         args:
             actor - The actor for training the network
@@ -29,7 +35,7 @@ class LTRTrainer(BaseTrainer):
         super().__init__(actor, loaders, optimizer, settings, lr_scheduler)
 
         self._set_default_settings()
-
+        self.load_ignore_fields = load_ignore_fields
         # Initialize statistics variables
         self.stats = OrderedDict({loader.name: None for loader in self.loaders})
 
@@ -72,6 +78,7 @@ class LTRTrainer(BaseTrainer):
         if self.freeze_backbone_bn_layers:
             freeze_batchnorm_layers(self.actor.net.feature_extractor)
 
+        freeze_everything_except_fusion_module(self.actor)
         torch.set_grad_enabled(loader.training)
 
         self._init_timing()
@@ -179,3 +186,16 @@ class LTRTrainer(BaseTrainer):
             self.tensorboard_writer.write_info(self.settings.module_name, self.settings.script_name, self.settings.description)
 
         self.tensorboard_writer.write_epoch(self.stats, self.epoch)
+
+    # x = time.time()
+    # self.optimizer.zero_grad()
+    # print('zero_grad', time.time() - x)
+    # x = time.time()
+    # loss.backward()
+    # print('backward', time.time() - x)
+    # x = time.time()
+    # self.optimizer.step()
+    # print('step', time.time() - x)
+    # x = time.time()
+    # self.optimizer.zero_grad()
+    # print('zero_grad', time.time() - x)

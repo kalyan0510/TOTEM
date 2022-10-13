@@ -18,9 +18,9 @@ if __name__ == '__main__':
     # trackers.extend(trackerlist('temptomp', 'tomp_temp_use_processed_s', None, 'My Tomp with 10 temporal frame features but feature selection over processed score maps'))
     # trackers.extend(trackerlist('temptomp', 'tomp_temp_misplaced_trainframepos', None, 'My Tomp with misplaced train frames (ablate study?)'))
     trackers.extend(trackerlist('tomp', 'tomp50', None, 'Original Tomp'))
-    trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
-    trackers.extend(trackerlist('atom', 'default', None, 'TransAtom myrun'))
+    # trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
+    # trackers.extend(trackerlist('atom', 'default', None, 'TransAtom myrun'))
 
     dataset = get_dataset('totb')
-    print_results(trackers, dataset, 'TOTB Tomp', merge_results=True, plot_types=('success', 'prec'),
+    print_results(trackers, dataset, 'TOTBTompOnly', merge_results=True, plot_types=('success', 'prec'),
                  skip_missing_seq=True, force_evaluation=True, plot_bin_gap=0.05, exclude_invalid_frames=False)

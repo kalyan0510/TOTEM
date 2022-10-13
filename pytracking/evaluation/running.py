@@ -1,3 +1,5 @@
+import traceback
+
 import numpy as np
 import multiprocessing
 import os
@@ -151,6 +153,7 @@ def run_sequence(seq: Sequence, tracker: Tracker, debug=False, visdom_info=None)
             output = tracker.run_sequence(seq, debug=debug, visdom_info=visdom_info)
         except Exception as e:
             print(e)
+            traceback.print_exc()
             return
 
     sys.stdout.flush()
@@ -163,7 +166,7 @@ def run_sequence(seq: Sequence, tracker: Tracker, debug=False, visdom_info=None)
         num_frames = len(output['time'])
 
     print('FPS: {}'.format(num_frames / exec_time))
-    # _save_tracker_output(seq, tracker, output)
+    _save_tracker_output(seq, tracker, output)
 
     if not debug:
         if seq.dataset == 'oxuva':

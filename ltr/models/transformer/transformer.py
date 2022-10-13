@@ -169,7 +169,8 @@ class TransformerEncoderLayer(nn.Module):
 
     def with_pos_embed(self, tensor, pos):
         return tensor if pos is None else tensor + pos
-
+    # kalyan edit
+    # Reason behind post and pre: https://arxiv.org/pdf/2002.04745.pdf
     def forward_post(self, src, src_mask=None, src_key_padding_mask=None, pos=None):
         q = k = self.with_pos_embed(src, pos)
         src2 = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]

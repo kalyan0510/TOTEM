@@ -32,6 +32,9 @@ default_image_loader.use_jpeg4py = None
 
 
 def jpeg4py_loader(path):
+    # kalyan edit change back
+    return opencv_loader(path)
+
     """ Image reading using jpeg4py https://github.com/ajkxyz/jpeg4py"""
     try:
         return jpeg4py.JPEG(path).decode()

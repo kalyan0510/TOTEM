@@ -111,13 +111,20 @@ def pull_auc_from_processed_data(eval_data):
     for seq_stat in processed_seq_stats:
         print("{:<15} {:<6} {:<6}".format(*seq_stat))
 
-    return
+    return processed_seq_stats
 
 
 def plot_per_seq_auc(report_name):
     eval_data = get_eval_data(report_name)
-    pull_auc_from_processed_data(eval_data)
-
+    seq_stats = pull_auc_from_processed_data(eval_data)
+    print(seq_stats)
+    class_neg = {}
+    for s in seq_stats:
+        f, neg = class_neg.get(s[0].split('_')[0], (0,0))
+        class_neg[s[0].split('_')[0]] = (f+s[1], neg +s[2])
+    print(seq_stats)
+    for k,v in sorted(class_neg.items(), key=lambda x: x[1][1]):
+        print(k,v)
 
 def get_seq(dataset, seq_name):
     return next(seq for seq in dataset if seq.name == seq_name)
@@ -174,20 +181,20 @@ def plot_first100frame_successplot(report_name):
 
 if __name__ == "__main__":
     trackers = []
-    # trackers.extend(trackerlist('tomp', 'tomp50', None, 'Original Tomp'))
-    trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
+    trackers.extend(trackerlist('tomp', 'tomp50', None, 'Original Tomp'))
+    # trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
     # trackers.extend(trackerlist('atom', 'default', None, 'TransAtom myrun'))
 
     dataset = get_dataset('totb')
     # dataset = dataset[1:]
     # print(dataset)
-    report_name = 'ToMP50-TOTB'
+    report_name = 'TOTBTompOnly'
     # iou_stats(trackers, dataset)
     # seq_iou_stats(trackers, dataset)
 
     # plot_per_seq_iou(trackers, dataset)
-    # plot_per_seq_auc(report_name)
-    playback_results(trackers, get_seq(dataset, 'GlassSlab_2'))
+    plot_per_seq_auc(report_name)
+    # playback_results(trackers, get_seq(dataset, 'GlassSlab_2'))
     # RUN THIS BEFORE
     # print_results(trackers, dataset, report_name, force_evaluation=True)
     # plot_per_seq_auc(report_name)

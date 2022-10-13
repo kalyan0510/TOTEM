@@ -60,6 +60,7 @@ class BaseTrainer:
         # with torch.autograd.set_detect_anomaly(True):
         #print(self.epoch, max_epochs)
         epoch = -1
+        # kalyan edit change back
         num_tries = 5
         for i in range(num_tries):
             try:
@@ -184,9 +185,10 @@ class BaseTrainer:
         if ignore_fields is None:
             ignore_fields = ['settings']
 
+        # kalyan edit : remove strict in net load and unignore optimizer state dict loading
             # Never load the scheduler. It exists in older checkpoints.
         ignore_fields.extend(['lr_scheduler', 'constructor', 'net_type', 'actor_type', 'net_info'])
-
+        ignore_fields.extend(getattr(self, 'load_ignore_fields', []))
         # Load all fields
         for key in fields:
             if key in ignore_fields:

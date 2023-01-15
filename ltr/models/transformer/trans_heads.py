@@ -16,7 +16,7 @@ class Head(nn.Module):
     """
     """
     def __init__(self, filter_predictor, feature_extractor, classifier, bb_regressor,
-                 separate_filters_for_cls_and_bbreg=False):
+                 separate_filters_for_cls_and_bbreg=False, no_trans_feat=False):
         super().__init__()
 
         self.filter_predictor = filter_predictor
@@ -24,6 +24,7 @@ class Head(nn.Module):
         self.classifier = classifier
         self.bb_regressor = bb_regressor
         self.separate_filters_for_cls_and_bbreg = separate_filters_for_cls_and_bbreg
+        self.no_trans_feat = no_trans_feat
 
     def forward(self, train_feat, test_feat, train_bb, trans_train_feat, trans_test_feat, *args, **kwargs):
         assert train_bb.dim() == 3
@@ -38,9 +39,14 @@ class Head(nn.Module):
         # Extract features
         train_feat = self.extract_head_feat(train_feat, num_sequences)
         test_feat = self.extract_head_feat(test_feat, num_sequences)
+        # print('no_trans_feat', self.no_trans_feat)
 
-        trans_train_feat = trans_train_feat.reshape(-1, num_sequences, *trans_train_feat.shape[-3:])
-        trans_test_feat = trans_test_feat.reshape(-1, num_sequences, *trans_test_feat.shape[-3:])
+        if self.no_trans_feat:
+            trans_train_feat = self.extract_head_feat(trans_train_feat, num_sequences)
+            trans_test_feat = self.extract_head_feat(trans_test_feat, num_sequences)
+        else:
+            trans_train_feat = trans_train_feat.reshape(-1, num_sequences, *trans_train_feat.shape[-3:])
+            trans_test_feat = trans_test_feat.reshape(-1, num_sequences, *trans_test_feat.shape[-3:])
 
         # Train filter
         cls_filter, breg_filter, test_feat_enc = self.get_filter_and_features(train_feat, test_feat, trans_train_feat, trans_test_feat, *args, **kwargs)

@@ -18,3 +18,5 @@ class EnvironmentSettings:
         self.davis_dir = ''
         self.youtubevos_dir = ''
         self.lasot_candidate_matching_dataset_path = ''
+        self.trans10k_dir = '/home/kalyan/trans/Trans10K_cls12'
+        self.trans2k_dir = '/home/kalyan/data/trans2k'

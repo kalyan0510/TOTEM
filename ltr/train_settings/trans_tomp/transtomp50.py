@@ -47,7 +47,7 @@ def run(settings):
     settings.train_samples_per_epoch = 10000
     settings.val_samples_per_epoch = 1000
     settings.val_epoch_interval = 5
-    settings.num_epochs = 300
+    settings.num_epochs = 30
 
     settings.weight_giou = 1.0
     settings.weight_clf = 100.0
@@ -155,6 +155,6 @@ def run(settings):
 
     trainer = LTRTrainer(actor, [loader_train, loader_val], optimizer, settings, lr_scheduler,
                          freeze_backbone_bn_layers=settings.freeze_backbone_bn_layers,
-                         load_ignore_fields=['optimizer', 'settings', 'stats'])
+                         load_ignore_fields=['optimizer', 'settings', 'stats'], train_fusion_only=True)
 
     trainer.train(settings.num_epochs, load_latest=True, fail_safe=True)

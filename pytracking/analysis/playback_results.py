@@ -90,7 +90,7 @@ class Display:
         # Draw rects
         rect_handles = []
         for i, bb in enumerate(bb_list):
-            rect = patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=1,
+            rect = patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=3,
                                      edgecolor=self.plot_draw_styles[i]['color'], facecolor='none')
             self.ax.add_patch(rect)
 
@@ -107,7 +107,7 @@ class Display:
 
         self.ax.set_axis_off()
         self.ax.axis('equal')
-        plt.legend(handles=rect_handles, loc=4, borderaxespad=0.)
+        plt.legend(handles=rect_handles, loc=4, borderaxespad=0., prop={'size': 23})
         mode = 'manual' if self.pause_mode else 'auto     '
         speed = self._get_speed()
         self.fig.suptitle('Sequence: {}    Mode: {}    Speed: {:d}x'.format(self.sequence_name, mode, speed),

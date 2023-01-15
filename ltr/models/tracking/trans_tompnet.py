@@ -21,7 +21,7 @@ class ToMPnet(nn.Module):
         head:  Head module containing classifier and bounding box regressor.
         head_layer:  Names of the backbone layers to use for the head module."""
 
-    def __init__(self, feature_extractor, trans_feature_extractor, head, head_layer, use_trans2seg_encoder):
+    def __init__(self, feature_extractor, trans_feature_extractor, head, head_layer, use_trans2seg_encoder, no_trans_feat=False):
         super().__init__()
 
         self.feature_extractor = feature_extractor
@@ -30,6 +30,7 @@ class ToMPnet(nn.Module):
         self.head_layer = [head_layer] if isinstance(head_layer, str) else head_layer
         self.output_layers = sorted(list(set(self.head_layer)))
         self.use_trans2seg_encoder = use_trans2seg_encoder
+        self.no_trans_feat = no_trans_feat
 
 
     def forward(self, train_imgs, test_imgs, train_bb, *args, **kwargs):
@@ -50,10 +51,13 @@ class ToMPnet(nn.Module):
         train_feat = self.extract_backbone_features(train_imgs.reshape(-1, *train_imgs.shape[-3:]))
         test_feat = self.extract_backbone_features(test_imgs.reshape(-1, *test_imgs.shape[-3:]))
 
+        if self.no_trans_feat:
+            trans_train_feat = self.get_backbone_head_feat(self.extract_backbone_features(train_imgs.reshape(-1, *train_imgs.shape[-3:])))
+            trans_test_feat = self.get_backbone_head_feat(self.extract_backbone_features(test_imgs.reshape(-1, *test_imgs.shape[-3:])))
         # Extract Transparency features with Trans2Seg Backbone and/or Encoder
-        if not self.use_trans2seg_encoder:
-            _, _, trans_train_feat, _ = self.trans_feature_extractor.get_resnet_features(train_imgs.reshape(-1, *train_imgs.shape[-3:]))
-            _, _, trans_test_feat, _ = self.trans_feature_extractor.get_resnet_features(test_imgs.reshape(-1, *test_imgs.shape[-3:]))
+        elif not self.use_trans2seg_encoder:
+            trans_train_feat = self.trans_feature_extractor.get_resnet_features(train_imgs.reshape(-1, *train_imgs.shape[-3:]))
+            trans_test_feat = self.trans_feature_extractor.get_resnet_features(test_imgs.reshape(-1, *test_imgs.shape[-3:]))
         else:
             trans_train_feat = self.trans_feature_extractor.get_encoder_features(train_imgs.reshape(-1, *train_imgs.shape[-3:]))
             trans_test_feat = self.trans_feature_extractor.get_encoder_features(test_imgs.reshape(-1, *test_imgs.shape[-3:]))
@@ -96,7 +100,9 @@ class ToMPnet(nn.Module):
 @model_constructor
 def tompnet50(filter_size=4, head_layer='layer3', backbone_pretrained=True, head_feat_blocks=0, head_feat_norm=True,
               final_conv=True, out_feature_dim=512, frozen_backbone_layers=(), nhead=8, num_encoder_layers=6,
-              num_decoder_layers=6, dim_feedforward=2048, feature_sz=18, use_test_frame_encoding=True, use_trans2seg_encoder = True):
+              num_decoder_layers=6, dim_feedforward=2048, feature_sz=18, use_test_frame_encoding=True, use_trans2seg_encoder=True,
+              no_conv_in_fusion=False, no_flex_emb_in_fusion=False, fusion_query_from='flex_emb',
+              fusion_num_encoder_layers=4, no_trans_feat=False, ffn_fuse=False):
     # Backbone
     backbone_net = backbones.resnet50(pretrained=backbone_pretrained, frozen_layers=frozen_backbone_layers)
 
@@ -128,7 +134,12 @@ def tompnet50(filter_size=4, head_layer='layer3', backbone_pretrained=True, head
     transformer = trans.Transformer(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=num_encoder_layers,
                                     num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward)
 
-    fusion_module = fp.FusionModule(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=4, dim_feedforward=2048, dropout=0.1)
+    if not ffn_fuse:
+        fusion_module = fp.FusionModule(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=fusion_num_encoder_layers, dim_feedforward=2048,
+                                    dropout=0.1, no_conv=no_conv_in_fusion, no_flex_emb=no_flex_emb_in_fusion,
+                                    query_from=fusion_query_from)
+    else:
+        fusion_module = fp.ConvFusionModule(d_model=out_feature_dim, nhead=nhead)
 
     filter_predictor = fp.FilterPredictor(transformer, feature_sz=feature_sz, fusion_module=fusion_module,
                                           use_test_frame_encoding=use_test_frame_encoding)
@@ -138,10 +149,12 @@ def tompnet50(filter_size=4, head_layer='layer3', backbone_pretrained=True, head
     bb_regressor = heads.DenseBoxRegressor(num_channels=out_feature_dim)
 
     head = heads.Head(filter_predictor=filter_predictor, feature_extractor=head_feature_extractor,
-                      classifier=classifier, bb_regressor=bb_regressor)
+                      classifier=classifier, bb_regressor=bb_regressor, no_trans_feat=no_trans_feat)
 
+    if no_trans_feat :
+        trans2seg = backbone_net
     # ToMP network
-    net = ToMPnet(feature_extractor=backbone_net, trans_feature_extractor = trans2seg, head=head, head_layer=head_layer, use_trans2seg_encoder = use_trans2seg_encoder)
+    net = ToMPnet(feature_extractor=backbone_net, trans_feature_extractor=trans2seg, head=head, head_layer=head_layer, use_trans2seg_encoder = use_trans2seg_encoder, no_trans_feat=no_trans_feat)
     return net
 
 

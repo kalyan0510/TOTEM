@@ -65,14 +65,14 @@ if __name__ == '__main__':
         # 'query': [1, 2, 3, 4, 6, 7],
         # 'tensor': [5],
     }
-    total_tests = 224
+    total_tests = 225
     conda='t3'
     dataset = 'totb'
     pkgpath='~/desk/pytracking/pytracking'
 
-    tracker_name = 'rts'
+    tracker_name = 'transtomp'
     # param_names = ['tomp_temp_1t', 'tomp_temp_3t', 'tomp_temp_1tp1th', 'tomp_temp_3tp1th',
     #                'tomp_temp_use_processed_s']
     # param_names = ['tomp_temp_misplaced_trainframepos','tomp_temp_0t',  'tomp_temp_correct_pos_emb.py']
-    param_names = ['rts50']
+    param_names = ['tomp50wFusion__objwise_f1_two_step']
     RunCommandMaker(total_tests, gpu_ids, tracker_name, param_names, conda, pkgpath, dataset).make_cmds()

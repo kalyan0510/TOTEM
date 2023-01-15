@@ -124,7 +124,7 @@ def _save_tracker_output(seq: Sequence, tracker: Tracker, output: dict):
 
 def run_sequence(seq: Sequence, tracker: Tracker, debug=False, visdom_info=None):
     """Runs a tracker on a sequence."""
-
+    print(seq)
     def _results_exist():
         if seq.dataset == 'oxuva':
             vid_id, obj_id = seq.name.split('_')[:2]

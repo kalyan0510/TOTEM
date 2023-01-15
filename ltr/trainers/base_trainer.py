@@ -9,7 +9,7 @@ class BaseTrainer:
     """Base trainer class. Contains functions for training and saving/loading checkpoints.
     Trainer classes should inherit from this one and overload the train_epoch function."""
 
-    def __init__(self, actor, loaders, optimizer, settings, lr_scheduler=None):
+    def __init__(self, actor, loaders, optimizer, settings, lr_scheduler=None, strict_weight_load=True):
         """
         args:
             actor - The actor for training the network
@@ -23,6 +23,7 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.loaders = loaders
+        self.strict_weight_load = strict_weight_load
 
         self.update_settings(settings)
 
@@ -194,7 +195,8 @@ class BaseTrainer:
             if key in ignore_fields:
                 continue
             if key == 'net':
-                net.load_state_dict(checkpoint_dict[key])
+                print(f"Strict weight load: {self.strict_weight_load}")
+                net.load_state_dict(checkpoint_dict[key], strict=self.strict_weight_load)
             elif key == 'optimizer':
                 self.optimizer.load_state_dict(checkpoint_dict[key])
             else:
@@ -207,7 +209,7 @@ class BaseTrainer:
             net.info = checkpoint_dict['net_info']
 
         # self.epoch = self.settings.start_epoch
-        # self.epoch = 0
+        self.epoch = 0
         # Update the epoch in lr scheduler
         if 'epoch' in fields:
             self.lr_scheduler.last_epoch = self.epoch

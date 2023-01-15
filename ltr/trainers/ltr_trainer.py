@@ -18,10 +18,16 @@ def freeze_everything_except_fusion_module(actor):
         module.eval()
     for module in actor.net.head.filter_predictor.fusion_module.modules():
         module.train()
+    for module in actor.net.head.filter_predictor.fusion_module.modules():
+        module.train()
+    for p in actor.net.feature_extractor.parameters():
+        p.requires_grad = False
+    for p in actor.net.trans_feature_extractor.parameters():
+        p.requires_grad = False
 
 class LTRTrainer(BaseTrainer):
     def __init__(self, actor, loaders, optimizer, settings, lr_scheduler=None, freeze_backbone_bn_layers=False,
-                 load_ignore_fields=[]):
+                 load_ignore_fields=[], train_fusion_only=False, strict_weight_load=True):
         """
         args:
             actor - The actor for training the network
@@ -32,7 +38,7 @@ class LTRTrainer(BaseTrainer):
             lr_scheduler - Learning rate scheduler
             freeze_backbone_bn_layers - Set to True to freeze the bach norm statistics in the backbone during training.
         """
-        super().__init__(actor, loaders, optimizer, settings, lr_scheduler)
+        super().__init__(actor, loaders, optimizer, settings, lr_scheduler, strict_weight_load)
 
         self._set_default_settings()
         self.load_ignore_fields = load_ignore_fields
@@ -46,7 +52,7 @@ class LTRTrainer(BaseTrainer):
         self.move_data_to_gpu = getattr(settings, 'move_data_to_gpu', True)
 
         self.freeze_backbone_bn_layers = freeze_backbone_bn_layers
-
+        self.train_fusion_only = train_fusion_only
     def save_data_to_file(self, data, i):
         dir_path = os.path.join(self.settings.env.tensorboard_dir, self.settings.project_path)
         dir_path = os.path.join(dir_path, 'data_inp/')
@@ -78,7 +84,8 @@ class LTRTrainer(BaseTrainer):
         if self.freeze_backbone_bn_layers:
             freeze_batchnorm_layers(self.actor.net.feature_extractor)
 
-        freeze_everything_except_fusion_module(self.actor)
+        if self.train_fusion_only:
+            freeze_everything_except_fusion_module(self.actor)
         torch.set_grad_enabled(loader.training)
 
         self._init_timing()

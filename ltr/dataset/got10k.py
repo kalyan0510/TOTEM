@@ -94,7 +94,9 @@ class Got10k(BaseVideoDataset):
         print(f"GOT10k indexed sequences: {len(indexed_metadata.keys())}")
 
         sequence_meta_info = {s: indexed_metadata[s] if s in indexed_metadata.keys() else self._read_meta(os.path.join(self.root, s)) for s in tqdm(self.sequence_list)}
-        indexed_metadata = indexed_metadata | sequence_meta_info
+        # d = indexed_metadata.copy()
+        indexed_metadata.update(sequence_meta_info)
+        # indexed_metadata = indexed_metadata | sequence_meta_info
         with open('got10k_metadata.pickle', 'wb') as f:
             pickle.dump(indexed_metadata, f, pickle.HIGHEST_PROTOCOL)
         return sequence_meta_info
@@ -171,7 +173,7 @@ class Got10k(BaseVideoDataset):
         return {'bbox': bbox, 'valid': valid, 'visible': visible, 'visible_ratio': visible_ratio}
 
     def _get_frame_path(self, seq_path, frame_id):
-        return os.path.join(seq_path, '{:08}.jpg'.format(frame_id+1))    # frames start from 1
+        return os.path.join(seq_path, '{:06}.jpg'.format(frame_id))    # frames start from 1
 
     def _get_frame(self, seq_path, frame_id):
         return self.image_loader(self._get_frame_path(seq_path, frame_id))

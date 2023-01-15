@@ -109,7 +109,7 @@ def pull_auc_from_processed_data(eval_data):
     processed_seq_stats = list(map(lambda x: [x['seq'], sequnece_num_frames[x['seq_i']], np.round(x['neg_auc_impact'])],
                                    sorted(sequence_stats, reverse=True, key=lambda x: x['neg_auc_impact'])))
     for seq_stat in processed_seq_stats:
-        print("{:<15} {:<6} {:<6}".format(*seq_stat))
+        print("xx {:<15} {:<6} {:<6}".format(*seq_stat))
 
     return processed_seq_stats
 
@@ -124,7 +124,7 @@ def plot_per_seq_auc(report_name):
         class_neg[s[0].split('_')[0]] = (f+s[1], neg +s[2])
     print(seq_stats)
     for k,v in sorted(class_neg.items(), key=lambda x: x[1][1]):
-        print(k,v)
+        print("-->",k,v)
 
 def get_seq(dataset, seq_name):
     return next(seq for seq in dataset if seq.name == seq_name)
@@ -181,24 +181,40 @@ def plot_first100frame_successplot(report_name):
 
 if __name__ == "__main__":
     trackers = []
-    trackers.extend(trackerlist('tomp', 'tomp50', None, 'Original Tomp'))
-    # trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
-    # trackers.extend(trackerlist('atom', 'default', None, 'TransAtom myrun'))
+    # trackers.extend(trackerlist('tomp', 'tomp50_totblasot', None, 'Original Tomp'))
+    # trackers.extend(trackerlist('tomp', 'retrained_tomp50onTOTB', None, 'Fine Tuned ToMP'))
+    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion_onLasotTOTB', None, 'Fusion Module on LaSOT + TOTB'))
+    # trackers.extend(trackerlist('tomp', 'tomp50_totb__objwise_f1', None, 'Fine Tuned ToMP Obj'))
+
+    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1', None, 'Fusion Module Obj'))
+    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step_all_train', None, 'Fusion Module 2 Step All train'))
+    # trackers.extend(trackerlist('gt', 'groundtruth', None, 'Ground Truth'))
+    trackers.extend(trackerlist('tomp', 'tomp50_300', None, 'TOMP(Baseline)'))
+    trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step', None, 'T3Net(Ours)'))
+    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step_all_train', None, 'xXXX(Ours)'))
+    # trackers.extend(trackerlist('tomp', 'tomp50_totb__objwise_f1_second', None, 'Fine Tuned ToMP Obj'))
+    # trackers.extend(trackerlist('atom', 'transatom', None, 'TransATOM'))
+
 
     dataset = get_dataset('totb')
     # dataset = dataset[1:]
     # print(dataset)
-    report_name = 'TOTBTompOnly'
+    report_name = 'FusionVsFineTuning'
+    print_results(trackers, dataset, report_name, force_evaluation=True)
     # iou_stats(trackers, dataset)
     # seq_iou_stats(trackers, dataset)
 
     # plot_per_seq_iou(trackers, dataset)
-    plot_per_seq_auc(report_name)
-    # playback_results(trackers, get_seq(dataset, 'GlassSlab_2'))
-    # RUN THIS BEFORE
-    # print_results(trackers, dataset, report_name, force_evaluation=True)
+    # MAINMAIN
     # plot_per_seq_auc(report_name)
 
+    playback_results(trackers, get_seq(dataset, 'Custom_1'))
+    # RUN THIS BEFORE
+    # plot_per_seq_auc(report_name)
+
+
+# trackers.extend(trackerlist('rts', 'rts50', None, 'RTS'))
+# trackers.extend(trackerlist('atom', 'default', None, 'TransAtom myrun'))
 """
     # print(len(dataset[0].ground_truth_rect))
     # print((dataset[0].ground_truth_rect))
@@ -214,3 +230,20 @@ if __name__ == "__main__":
     # print_per_sequence_results(trackers, dataset, 'OTB', merge_results=True, filter_criteria=None,
     #                            force_evaluation=False)
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

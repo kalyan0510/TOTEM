@@ -211,7 +211,7 @@ class Tracker:
             tracker.visdom_draw_tracking(image, bboxes, segmentation)
         elif tracker.params.visualization:
             self.visualize(image, bboxes, segmentation)
-
+        print(seq.frames)
         for frame_num, frame_path in tqdm(enumerate(seq.frames[1:], start=1), total=len(seq.frames)-1):
             while True:
                 if not self.pause_mode:
@@ -321,6 +321,7 @@ class Tracker:
 
                 x, y, w, h = cv.selectROI(display_name, frame_disp, fromCenter=False)
                 init_state = [x, y, w, h]
+                print(init_state)
                 tracker.initialize(frame, _build_init_info(init_state))
                 output_boxes.append(init_state)
                 break
@@ -736,6 +737,7 @@ class Tracker:
             print("Resetting target pos to gt!")
 
     def _read_image(self, image_file: str):
+        # print(image_file)
         im = cv.imread(image_file)
         return cv.cvtColor(im, cv.COLOR_BGR2RGB)
 

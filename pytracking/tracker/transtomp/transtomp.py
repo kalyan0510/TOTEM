@@ -253,7 +253,7 @@ class TransToMP(BaseTracker):
         self.visdom.register(torch.tensor(self.logging_dict['max_score']), 'lineplot', 3, 'Max Score')
         self.debug_info['max_score'] = score_map.max().item()
         self.visdom.register(self.debug_info, 'info_dict', 1, 'Status')
-        if self.last_train_img is not None and self.last_train_box is not None:
+        if hasattr(self, 'last_train_img') and self.last_train_img is not None and self.last_train_box is not None:
             # self.visdom.register(self.last_train_img[0], 'image', 2, 'im train 1')
             self.visdom.register((self.last_train_img.permute(1,2,0).numpy(), self.last_train_box), 'Tracking', 1, 'im train 1')
         if self.init_frame is not None and self.init_target_box is not None:
@@ -467,7 +467,8 @@ class TransToMP(BaseTracker):
         backbone_feat = self.net.extract_backbone(im_patches)
         res_feat = self.net.head.extract_head_feat(self.get_backbone_head_feat(backbone_feat))
         tras_feat = self.net.extract_trans_feat(im_patches)
-        return self.net.head.filter_predictor.fusion_module(res_feat.unsqueeze(0), tras_feat.unsqueeze(0)).squeeze(0)
+        fused_feat = self.net.head.filter_predictor.fusion_module(res_feat.unsqueeze(0), tras_feat.unsqueeze(0)).squeeze(0)
+        return fused_feat
         # return res_feat
 
     def get_backbone_head_feat(self, backbone_feat):

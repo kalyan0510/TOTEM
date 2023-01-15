@@ -3,28 +3,31 @@ import torch.nn as nn
 
 from ltr.models.layers.normalization import InstanceL2Norm
 from ltr.models.transformer.position_encoding import PositionEmbeddingSine
-from ltr.models.transformer.transformer import TransformerEncoderLayer, TransformerEncoder
+from ltr.models.transformer.transformer import  TransformerEncoderLayer, TransformerEncoder
 
 
 class FusionModule(nn.Module):
     def __init__(self, d_model=256, nhead=8, num_encoder_layers=4, dim_feedforward=2048,
                  dropout=0.1, query_from='flex_emb', activation="relu", normalize_before=False,
-                 norm_scale = None):
+                 norm_scale = None, no_conv=False, no_flex_emb=False):
         super().__init__()
         self.d_model = d_model
         self.nhead = nhead
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation, normalize_before)
         encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
         self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
-        self.flex_embed = nn.Embedding(1, self.d_model)
+        self.flex_embed = nn.Embedding(1, self.d_model) if not no_flex_emb else None
         self.extract_index = ['res_feat', 'trans_feat', 'flex_emb'].index(query_from)
         norm_scale = 1/16.0 if norm_scale is None else norm_scale
-        feat_layers = []
-        feat_layers.append(nn.Conv2d(d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
-        feat_layers.append(nn.ReLU(inplace=True))
-        feat_layers.append(nn.Conv2d(d_model * 4, d_model, kernel_size=1, padding=0, bias=False, stride=1))
-        feat_layers.append(InstanceL2Norm(scale=norm_scale))
-        self.conv = nn.Sequential(*feat_layers)
+        if not no_conv:
+            feat_layers = []
+            feat_layers.append(nn.Conv2d(d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(d_model * 4, d_model, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(InstanceL2Norm(scale=norm_scale))
+            self.conv = nn.Sequential(*feat_layers)
+        else:
+            self.conv = None
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -42,8 +45,11 @@ class FusionModule(nn.Module):
         res = res_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
         trans = trans_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
         # flex_embed = (1, C) , ones = (1, N_tr*B*H*W, 1)
-        flex = self.flex_embed.weight * torch.ones(*res.shape[:-1], 1, device=res.device)
-        feat = torch.cat([res, trans, flex], dim=0)
+        if self.flex_embed is not None:
+            flex = self.flex_embed.weight * torch.ones(*res.shape[:-1], 1, device=res.device)
+            feat = torch.cat([res, trans, flex], dim=0)
+        else:
+            feat = torch.cat([res, trans], dim=0)
         feat = self.encoder(feat)[self.extract_index]
         # N_tr*B*H*W, C ==permute(1,0)==> C, N_tr*B*H*W
         # C, N_tr*B*H*W ==view(C, N_tr, B, H, W)==> C, N_tr, B, H, W
@@ -51,7 +57,128 @@ class FusionModule(nn.Module):
         feat = feat.permute(1, 0).view(c, n_tr, b, h, w).permute(1, 2, 0, 3, 4)
         # x = feat
         feat = feat.reshape(-1, *feat.shape[-3:])
-        feat = self.conv(feat)
+        if self.conv is not None:
+            feat = self.conv(feat)
+        feat = feat.reshape(n_tr, b, c, h, w)
+        return feat
+
+
+class NewFusionModule(nn.Module):
+    def __init__(self, d_model=256, nhead=8, num_encoder_layers=4, dim_feedforward=2048,
+                 dropout=0.1, query_from='flex_emb', activation="relu", normalize_before=False,
+                 norm_scale = None, no_conv=False, no_flex_emb=False):
+        super().__init__()
+        self.d_model = d_model
+        self.nhead = nhead
+        encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation, normalize_before)
+        encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
+        self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
+        self.flex_embed = nn.Embedding(1, self.d_model) if not no_flex_emb else None
+        self.extract_index = ['res_feat', 'trans_feat', 'flex_emb'].index(query_from)
+        norm_scale = 1/16.0 if norm_scale is None else norm_scale
+        if not no_conv:
+            feat_layers = []
+            feat_layers.append(nn.Conv2d(d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(d_model * 4, d_model, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(InstanceL2Norm(scale=norm_scale))
+            self.conv = nn.Sequential(*feat_layers)
+        else:
+            self.conv = None
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+        for p in self.encoder.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, res_feat, trans_feat):
+        #
+        n_tr, b, c, h, w = res_feat.shape
+        # N_tr, B, C, H, W ==permute(2, 0, 1, 3, 4)==> C, N_tr, B, H, W
+        # C, N_tr, B, H, W ==flatten(1)==> C, N_tr*B*H*W
+        # C, N_tr*B*H*W ==permute(1, 0)==> N_tr*B*H*W, C
+        # N_tr*B*H*W, C ==unsqueeze(0)==> 1, N_tr*B*H*W, C
+        res = res_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
+        trans = trans_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
+        # flex_embed = (1, C) , ones = (1, N_tr*B*H*W, 1)
+        if self.flex_embed is not None:
+            flex = self.flex_embed.weight * torch.ones(*res.shape[:-1], 1, device=res.device)
+            feat = torch.cat([res, trans, flex], dim=0)
+        else:
+            feat = torch.cat([res, trans], dim=0)
+        feat = self.encoder(feat)[self.extract_index]
+        # N_tr*B*H*W, C ==permute(1,0)==> C, N_tr*B*H*W
+        # C, N_tr*B*H*W ==view(C, N_tr, B, H, W)==> C, N_tr, B, H, W
+        # C, N_tr, B, H, W ==permute(1,2,0,3,4)==> N_tr, B, C, H, W
+        feat = feat.permute(1, 0).view(c, n_tr, b, h, w).permute(1, 2, 0, 3, 4)
+        # x = feat
+        feat = feat.reshape(-1, *feat.shape[-3:])
+        if self.conv is not None:
+            feat = self.conv(feat)
+        feat = feat.reshape(n_tr, b, c, h, w)
+        return feat
+
+
+
+
+
+class ConvFusionModule(nn.Module):
+    def __init__(self, d_model=256, nhead=8,
+                 norm_scale = None, no_conv=False):
+        super().__init__()
+        self.d_model = d_model
+        self.nhead = nhead
+        norm_scale = 1/16.0 if norm_scale is None else norm_scale
+        if not no_conv:
+            feat_layers = []
+            feat_layers.append(nn.Conv2d(2*d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(4*d_model, d_model*2, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(2 * d_model, d_model * 4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(4 * d_model, d_model * 2, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(2 * d_model, d_model * 4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(4 * d_model, d_model * 2, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(2*d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(4 * d_model, d_model * 2, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(2*d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(4 * d_model, d_model * 2, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(2*d_model, d_model*4, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(nn.ReLU(inplace=True))
+            feat_layers.append(nn.Conv2d(d_model * 4, d_model, kernel_size=1, padding=0, bias=False, stride=1))
+            feat_layers.append(InstanceL2Norm(scale=norm_scale))
+            self.convx = nn.Sequential(*feat_layers)
+        else:
+            self.convx = None
+
+    def forward(self, res_feat, trans_feat):
+        #
+        n_tr, b, c, h, w = res_feat.shape
+        # N_tr, B, C, H, W ==permute(2, 0, 1, 3, 4)==> C, N_tr, B, H, W
+        # C, N_tr, B, H, W ==flatten(1)==> C, N_tr*B*H*W
+        # C, N_tr*B*H*W ==permute(1, 0)==> N_tr*B*H*W, C
+        # N_tr*B*H*W, C ==unsqueeze(0)==> 1, N_tr*B*H*W, C
+        # res = res_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
+        # trans = trans_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
+        # flex_embed = (1, C) , ones = (1, N_tr*B*H*W, 1)
+        feat = torch.cat([res_feat.reshape(-1, c,h,w), trans_feat.reshape(-1, c,h,w)], dim=1)
+        # feat = self.encoder(feat)[self.extract_index]
+        # N_tr*B*H*W, C ==permute(1,0)==> C, N_tr*B*H*W
+        # C, N_tr*B*H*W ==view(C, N_tr, B, H, W)==> C, N_tr, B, H, W
+        # C, N_tr, B, H, W ==permute(1,2,0,3,4)==> N_tr, B, C, H, W
+        # feat = feat.permute(1, 0).view(c, n_tr, b, h, w).permute(1, 2, 0, 3, 4)
+        # x = feat
+        # feat = feat.reshape(-1, *feat.shape[-3:])
+        feat = self.convx(feat)
         feat = feat.reshape(n_tr, b, c, h, w)
         return feat
 
@@ -126,6 +253,9 @@ class FilterPredictor(nn.Module):
         # Fusion is happening.
         train_feat = self.fusion_module(train_feat, trans_train_feat)
         test_feat = self.fusion_module(test_feat, trans_test_feat)
+        # print("only trans")
+        # train_feat = self.fusion_module(trans_train_feat, trans_train_feat)
+        # test_feat = self.fusion_module(trans_test_feat, trans_test_feat)
 
         test_feat_seq = test_feat.permute(1, 2, 0, 3, 4).flatten(2).permute(2, 0, 1) # Nf_te*H*W, Ns, C
         train_feat_seq = train_feat.permute(1, 2, 0, 3, 4).flatten(2).permute(2, 0, 1) # Nf_tr*H*W, Ns, C

@@ -23,7 +23,7 @@ class Totb(BaseVideoDataset):
     Download the dataset from https://cis.temple.edu/lasot/download.html
     """
 
-    def __init__(self, root=None, image_loader=jpeg4py_loader, vid_ids=None, split=None, data_fraction=None):
+    def __init__(self, root=None, image_loader=jpeg4py_loader, vid_ids=None, split=None, data_fraction=None, obj_classes=None):
         """
         args:
             root - path to the lasot dataset.
@@ -42,14 +42,14 @@ class Totb(BaseVideoDataset):
         self.class_list = [f for f in os.listdir(self.root)]
         self.class_to_id = {cls_name: cls_id for cls_id, cls_name in enumerate(self.class_list)}
 
-        self.sequence_list = self._build_sequence_list(vid_ids, split)
+        self.sequence_list = self._build_sequence_list(vid_ids, split, obj_classes)
 
         if data_fraction is not None:
             self.sequence_list = random.sample(self.sequence_list, int(len(self.sequence_list)*data_fraction))
 
         self.seq_per_class = self._build_class_list()
 
-    def _build_sequence_list(self, vid_ids=None, split=None):
+    def _build_sequence_list(self, vid_ids=None, split=None, obj_classes=None):
         if split is not None:
             if vid_ids is not None:
                 raise ValueError('Cannot set both split_name and vid_ids.')
@@ -64,7 +64,9 @@ class Totb(BaseVideoDataset):
                 raise ValueError('Unknown split name.')
             sequence_list = pandas.read_csv(file_path, header=None).squeeze("columns").values.tolist()
         elif vid_ids is not None:
-            sequence_list = [c+'-'+str(v) for c in self.class_list for v in vid_ids]
+            sequence_list = [c+'_'+str(v) for c in self.class_list for v in vid_ids]
+        elif obj_classes is not None:
+            sequence_list = [c + '_' + str(v) for c in obj_classes for v in range(1, 16)]
         else:
             raise ValueError('Set either split_name or vid_ids.')
 

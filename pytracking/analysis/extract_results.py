@@ -42,8 +42,8 @@ def calc_seq_err_robust(pred_bb, anno_bb, dataset, target_visible=None):
     pred_bb = pred_bb.clone()
 
     # Check if invalid values are present
-    if torch.isnan(pred_bb).any() or (pred_bb[:, 2:] < 0.0).any():
-        raise Exception('Error: Invalid results')
+    # if torch.isnan(pred_bb).any() or (pred_bb[:, 2:] < 0.0).any():
+    #     raise Exception('Error: Invalid results')
 
     if torch.isnan(anno_bb).any():
         if dataset == 'uav':
@@ -161,7 +161,7 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
             ave_success_rate_plot_center[seq_id, trk_id, :] = (err_center.view(-1, 1) <= threshold_set_center.view(1, -1)).sum(0).float() / seq_length
             ave_success_rate_plot_center_norm[seq_id, trk_id, :] = (err_center_normalized.view(-1, 1) <= threshold_set_center_norm.view(1, -1)).sum(0).float() / seq_length
         for trk in trackers:
-            print( f"results/iou_data/{trk.parameter_name}_{seq.name}", len(seq_iou_data[trk.parameter_name]), len(seq_iou_data[trk.parameter_name][0]))
+            # print( f"results/iou_data/{trk.parameter_name}_{seq.name}", len(seq_iou_data[trk.parameter_name]), len(seq_iou_data[trk.parameter_name][0]))
             torch.save(seq_iou_data[trk.parameter_name], f"results/iou_data/{trk.parameter_name}_{seq.name}")
 
     if verbose: print('\n\nComputed results over {} / {} sequences'.format(valid_sequence.long().sum().item(), valid_sequence.shape[0]))
@@ -172,6 +172,8 @@ def extract_results(trackers, dataset, report_name, skip_missing_seq=False, plot
     tracker_names = [{'name': t.name, 'param': t.parameter_name, 'run_id': t.run_id, 'disp_name': t.display_name}
                      for t in trackers]
 
+    print(tracker_names)
+    print(ave_success_rate_plot_overlap.shape)
     eval_data = {'sequences': seq_names, 'trackers': tracker_names,
                  'valid_sequence': valid_sequence.tolist(),
                  'ave_success_rate_plot_overlap': ave_success_rate_plot_overlap.tolist(),

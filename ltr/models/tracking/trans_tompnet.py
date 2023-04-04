@@ -102,7 +102,7 @@ def tompnet50(filter_size=4, head_layer='layer3', backbone_pretrained=True, head
               final_conv=True, out_feature_dim=512, frozen_backbone_layers=(), nhead=8, num_encoder_layers=6,
               num_decoder_layers=6, dim_feedforward=2048, feature_sz=18, use_test_frame_encoding=True, use_trans2seg_encoder=True,
               no_conv_in_fusion=False, no_flex_emb_in_fusion=False, fusion_query_from='flex_emb',
-              fusion_num_encoder_layers=4, no_trans_feat=False, ffn_fuse=False):
+              fusion_num_encoder_layers=4, no_trans_feat=False, ffn_fuse=False, new_fusion=False):
     # Backbone
     backbone_net = backbones.resnet50(pretrained=backbone_pretrained, frozen_layers=frozen_backbone_layers)
 
@@ -134,11 +134,15 @@ def tompnet50(filter_size=4, head_layer='layer3', backbone_pretrained=True, head
     transformer = trans.Transformer(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=num_encoder_layers,
                                     num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward)
 
-    if not ffn_fuse:
+    if not ffn_fuse and not new_fusion:
         fusion_module = fp.FusionModule(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=fusion_num_encoder_layers, dim_feedforward=2048,
                                     dropout=0.1, no_conv=no_conv_in_fusion, no_flex_emb=no_flex_emb_in_fusion,
                                     query_from=fusion_query_from)
-    else:
+    elif new_fusion:
+        fusion_module = fp.NewFusionModule(d_model=out_feature_dim, nhead=nhead, num_encoder_layers=fusion_num_encoder_layers, dim_feedforward=2048,
+                                    dropout=0.1, no_conv=no_conv_in_fusion, no_flex_emb=no_flex_emb_in_fusion,
+                                    query_from=fusion_query_from)
+    elif ffn_fuse:
         fusion_module = fp.ConvFusionModule(d_model=out_feature_dim, nhead=nhead)
 
     filter_predictor = fp.FilterPredictor(transformer, feature_sz=feature_sz, fusion_module=fusion_module,

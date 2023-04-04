@@ -65,7 +65,7 @@ class FusionModule(nn.Module):
 
 class NewFusionModule(nn.Module):
     def __init__(self, d_model=256, nhead=8, num_encoder_layers=4, dim_feedforward=2048,
-                 dropout=0.1, query_from='flex_emb', activation="relu", normalize_before=False,
+                 dropout=0.1, query_from='res_feat', activation="relu", normalize_before=False,
                  norm_scale = None, no_conv=False, no_flex_emb=False):
         super().__init__()
         self.d_model = d_model
@@ -73,7 +73,12 @@ class NewFusionModule(nn.Module):
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation, normalize_before)
         encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
         self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
-        self.flex_embed = nn.Embedding(1, self.d_model) if not no_flex_emb else None
+        # self.flex_embed = nn.Embedding(1, self.d_model) if not no_flex_emb else None
+        self.center = nn.Embedding(1, self.d_model)
+        self.ltrb = nn.ModuleList([nn.Embedding(1, self.d_model) for i in range(4)])
+        self.resnbr_Emb = nn.Embedding(1, self.d_model)
+        self.transnbr_Emb = nn.Embedding(1, self.d_model)
+        self.test_Emb = nn.Embedding(1, self.d_model)
         self.extract_index = ['res_feat', 'trans_feat', 'flex_emb'].index(query_from)
         norm_scale = 1/16.0 if norm_scale is None else norm_scale
         if not no_conv:
@@ -99,14 +104,27 @@ class NewFusionModule(nn.Module):
         # C, N_tr, B, H, W ==flatten(1)==> C, N_tr*B*H*W
         # C, N_tr*B*H*W ==permute(1, 0)==> N_tr*B*H*W, C
         # N_tr*B*H*W, C ==unsqueeze(0)==> 1, N_tr*B*H*W, C
-        res = res_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
-        trans = trans_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0)
+        res_nbr = [torch.roll(res_feat, shifts=s, dims=d) for s, d in [(1, 3), (-1, 3), (1, 4), (-1, 4)] ]
+        trans_nbr = [torch.roll(trans_feat, shifts=s, dims=d) for s, d in [(1, 3), (-1, 3), (1, 4), (-1, 4)] ]
+        res_nbr = [r.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0) for r in res_nbr]
+        trans_nbr = [r.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0) for r in trans_nbr]
+        # print('res_nbr', res_nbr[0].get_device())
+        # print('trans_nbr', trans_nbr[0].get_device())
+        # print('self.resnbr_Emb.weight', self.resnbr_Emb.weight.get_device())
+        # # print(' res_nbr[0]', res_nbr[0].get_device())
+        # print(' self.ltrb[0]', self.ltrb[0].weight.get_device())
+
+
+
+        res_nbr = [r+e.weight+self.resnbr_Emb.weight for r,e in zip(res_nbr, self.ltrb)]
+        trans_nbr = [r+e.weight+self.transnbr_Emb.weight for r,e in zip(trans_nbr, self.ltrb)]
+
+        res = res_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0) + self.center.weight + self.resnbr_Emb.weight
+        trans = trans_feat.permute(2, 0, 1, 3, 4).flatten(1).permute(1, 0).unsqueeze(0) + self.center.weight + self.transnbr_Emb.weight
         # flex_embed = (1, C) , ones = (1, N_tr*B*H*W, 1)
-        if self.flex_embed is not None:
-            flex = self.flex_embed.weight * torch.ones(*res.shape[:-1], 1, device=res.device)
-            feat = torch.cat([res, trans, flex], dim=0)
-        else:
-            feat = torch.cat([res, trans], dim=0)
+        # flex = self.flex_embed.weight * torch.ones(*res.shape[:-1], 1, device=res.device)1
+        feat = torch.cat([res, trans] + res_nbr + trans_nbr, dim=0)
+        # print('self.extract_index', self.extract_index)
         feat = self.encoder(feat)[self.extract_index]
         # N_tr*B*H*W, C ==permute(1,0)==> C, N_tr*B*H*W
         # C, N_tr*B*H*W ==view(C, N_tr, B, H, W)==> C, N_tr, B, H, W

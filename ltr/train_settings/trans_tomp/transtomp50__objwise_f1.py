@@ -15,7 +15,7 @@ from ltr.models.loss.bbr_loss import GIoULoss
 
 def run(settings):
     settings.description = 'ToMP50'
-    settings.batch_size = 18
+    settings.batch_size = 28
     settings.num_workers = 16
     settings.multi_gpu = True
 

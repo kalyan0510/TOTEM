@@ -1,10 +1,9 @@
 import platform
 
 import torch.optim as optim
-# from ltr.dataset import Lasot, Got10k, TrackingNet, MSCOCOSeq, Totb
-from ltr.dataset import Totb, Lasot
+from ltr.dataset import Lasot, Got10k, TrackingNet, MSCOCOSeq, Totb
 from ltr.data import processing, sampler, LTRLoader
-from ltr.models.tracking import trans_tompnet
+from ltr.models.tracking import tompnet
 import ltr.models.loss as ltr_losses
 import ltr.actors.tracking as actors
 from ltr.trainers import LTRTrainer
@@ -14,23 +13,13 @@ from ltr.models.loss.bbr_loss import GIoULoss
 
 
 def run(settings):
-
-    print("""
-    MAKE SURE YOU MODIFY BELOW CODE BEFORE RUNNING
-        # Fusion is happening.
-        print('ONLY TRANS')
-        train_feat = self.fusion_module(trans_train_feat, trans_train_feat)
-        test_feat = self.fusion_module(trans_test_feat, trans_test_feat)
-    """)
     settings.description = 'ToMP50'
-    settings.batch_size = 36
+    settings.batch_size = 18
     settings.num_workers = 16
     settings.multi_gpu = True
-
     if platform.uname().node == 'kalyans-galaxybook-pro':
         settings.batch_size = 5
         settings.num_workers = 2
-
     settings.print_interval = 1
     settings.normalize_mean = [0.485, 0.456, 0.406]
     settings.normalize_std = [0.229, 0.224, 0.225]
@@ -51,7 +40,7 @@ def run(settings):
 
     settings.crop_type = 'inside_major'
     settings.max_scale_change = 1.5
-    settings.max_gap = 200 # CHANGE IT BECAUSE AVG LEN OF TOTB IS << THAN THAT OF LASOT
+    settings.max_gap = 200
     settings.train_samples_per_epoch = 4000
     settings.val_samples_per_epoch = 1000
     settings.val_epoch_interval = 3
@@ -64,18 +53,10 @@ def run(settings):
     settings.use_test_frame_encoding = False  # Set to True to use the same as in the paper but is less stable to train.
 
     # Train datasets
-    if platform.uname().node != 'kalyans-galaxybook-pro':
-        lasot_train = Lasot(settings.env.lasot_dir, split='train')
-    # got10k_train = Got10k(settings.env.got10k_dir, split='vottrain')
-    # trackingnet_train = TrackingNet(settings.env.trackingnet_dir, set_ids=list(range(4)))
-    # coco_train = MSCOCOSeq(settings.env.coco_dir)
+    # lasot_train = Lasot(settings.env.lasot_dir, split='train')
     totb_train = Totb(obj_classes=['Beaker', 'GlassBall', 'WubbleBubble'])
     totb_val = Totb(vid_ids=list(range(1, 16)))
-    # print(Totb.get_frames())
-    # return
-    # Validation datasets
-    # got10k_val = Got10k(settings.env.got10k_dir, split='votval')
-    print('BATCH SIZE', settings.batch_size)
+
 
     # Data transform
     transform_joint = tfm.Transform(tfm.ToGrayscale(probability=0.05),
@@ -119,7 +100,7 @@ def run(settings):
                                                                    center_sampling_radius=settings.center_sampling_radius)
 
     # Train sampler and loader
-    dataset_train = sampler.DiMPSampler([totb_train, lasot_train] if platform.uname().node != 'kalyans-galaxybook-pro' else [totb_train],[1, 1] if platform.uname().node != 'kalyans-galaxybook-pro' else  [ 1],
+    dataset_train = sampler.DiMPSampler([ totb_train], [ 1],
                                         samples_per_epoch=settings.train_samples_per_epoch, max_gap=settings.max_gap,
                                         num_test_frames=settings.num_test_frames, num_train_frames=settings.num_train_frames,
                                         processing=data_processing_train)
@@ -136,7 +117,7 @@ def run(settings):
                            shuffle=False, drop_last=True, epoch_interval=settings.val_epoch_interval, stack_dim=1)
 
     # Create network and actor
-    net = trans_tompnet.tompnet50(filter_size=settings.target_filter_sz, backbone_pretrained=True, head_feat_blocks=0,
+    net = tompnet.tompnet50(filter_size=settings.target_filter_sz, backbone_pretrained=True, head_feat_blocks=0,
                             head_feat_norm=True, final_conv=True, out_feature_dim=256, feature_sz=settings.feature_sz,
                             frozen_backbone_layers=settings.frozen_backbone_layers,
                             num_encoder_layers=settings.num_encoder_layers,
@@ -156,14 +137,13 @@ def run(settings):
 
     # Optimizer
     optimizer = optim.AdamW([
-        {'params': actor.net.head.filter_predictor.fusion_module.parameters(), 'lr': 1e-4}
-        # {'params': actor.net.feature_extractor.layer3.parameters(), 'lr': 2e-5}
+        # {'params': actor.net.head.parameters(), 'lr': 1e-4},
+        {'params': actor.net.feature_extractor.layer3.parameters(), 'lr': 1e-5}
     ], lr=2e-4, weight_decay=0.0001)
 
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 250], gamma=0.2)
 
     trainer = LTRTrainer(actor, [loader_train, loader_val], optimizer, settings, lr_scheduler,
-                         freeze_backbone_bn_layers=settings.freeze_backbone_bn_layers,
-                         load_ignore_fields=['optimizer', 'settings', 'stats'], train_fusion_only=True)
+                         load_ignore_fields=['optimizer', 'settings', 'stats'], freeze_backbone_bn_layers=settings.freeze_backbone_bn_layers)
 
     trainer.train(settings.num_epochs, load_latest=True, fail_safe=True)

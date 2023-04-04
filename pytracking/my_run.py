@@ -189,18 +189,19 @@ if __name__ == "__main__":
     # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1', None, 'Fusion Module Obj'))
     # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step_all_train', None, 'Fusion Module 2 Step All train'))
     # trackers.extend(trackerlist('gt', 'groundtruth', None, 'Ground Truth'))
-    trackers.extend(trackerlist('tomp', 'tomp50_300', None, 'TOMP(Baseline)'))
-    trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step', None, 'T3Net(Ours)'))
-    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step_all_train', None, 'xXXX(Ours)'))
+    # trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step_all_train', None, 'TOTEM_3(Ours)'))
     # trackers.extend(trackerlist('tomp', 'tomp50_totb__objwise_f1_second', None, 'Fine Tuned ToMP Obj'))
-    # trackers.extend(trackerlist('atom', 'transatom', None, 'TransATOM'))
+    trackers.extend(trackerlist('atom', 'transatom', None, 'TransATOM'))
+    trackers.extend(trackerlist('tomp', 'tomp50_300', None, 'TOMP(Baseline)'))
+    trackers.extend(trackerlist('transtomp', 'tomp50wFusion__objwise_f1_two_step', None, 'TOTEM (Ours)'))
 
 
     dataset = get_dataset('totb')
     # dataset = dataset[1:]
     # print(dataset)
     report_name = 'FusionVsFineTuning'
-    print_results(trackers, dataset, report_name, force_evaluation=True)
+    ## print_results(trackers, dataset, report_name, force_evaluation=True)
+
     # iou_stats(trackers, dataset)
     # seq_iou_stats(trackers, dataset)
 
@@ -208,7 +209,9 @@ if __name__ == "__main__":
     # MAINMAIN
     # plot_per_seq_auc(report_name)
 
-    playback_results(trackers, get_seq(dataset, 'Custom_1'))
+    playback_results(trackers, get_seq(dataset, 'BubbleBalloon_14'))
+    # playback_results(trackers, get_seq(dataset, 'Flask_9')) # a bot confusing
+    # playback_results(trackers, get_seq(dataset, 'JuggleBubble_12'))
     # RUN THIS BEFORE
     # plot_per_seq_auc(report_name)
 

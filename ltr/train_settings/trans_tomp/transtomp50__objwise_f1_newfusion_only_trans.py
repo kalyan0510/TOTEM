@@ -23,7 +23,7 @@ def run(settings):
         test_feat = self.fusion_module(trans_test_feat, trans_test_feat)
     """)
     settings.description = 'ToMP50'
-    settings.batch_size = 36
+    settings.batch_size = 20
     settings.num_workers = 16
     settings.multi_gpu = True
 
@@ -55,7 +55,7 @@ def run(settings):
     settings.train_samples_per_epoch = 4000
     settings.val_samples_per_epoch = 1000
     settings.val_epoch_interval = 3
-    settings.num_epochs = 30
+    settings.num_epochs = 90
 
     settings.weight_giou = 1.0
     settings.weight_clf = 100.0
@@ -141,7 +141,9 @@ def run(settings):
                             frozen_backbone_layers=settings.frozen_backbone_layers,
                             num_encoder_layers=settings.num_encoder_layers,
                             num_decoder_layers=settings.num_decoder_layers,
-                            use_test_frame_encoding=settings.use_test_frame_encoding)
+                            use_test_frame_encoding=settings.use_test_frame_encoding,
+                            fusion_query_from='res_feat',
+                            new_fusion=True)
 
 
     # Wrap the network for multi GPU training
@@ -164,6 +166,6 @@ def run(settings):
 
     trainer = LTRTrainer(actor, [loader_train, loader_val], optimizer, settings, lr_scheduler,
                          freeze_backbone_bn_layers=settings.freeze_backbone_bn_layers,
-                         load_ignore_fields=['optimizer', 'settings', 'stats'], train_fusion_only=True)
+                         load_ignore_fields=['optimizer', 'settings', 'stats'], train_fusion_only=True, strict_weight_load=False)
 
     trainer.train(settings.num_epochs, load_latest=True, fail_safe=True)

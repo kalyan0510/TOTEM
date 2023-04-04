@@ -90,14 +90,14 @@ class Display:
         # Draw rects
         rect_handles = []
         for i, bb in enumerate(bb_list):
-            rect = patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=3,
+            rect = patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=5,
                                      edgecolor=self.plot_draw_styles[i]['color'], facecolor='none')
             self.ax.add_patch(rect)
 
-            rect_handles.append(patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=1,
-                                     edgecolor=self.plot_draw_styles[i]['color'],
-                                                  facecolor=self.plot_draw_styles[i]['color'],
-                                                  label=trackers[i]))
+            # rect_handles.append(patches.Rectangle((bb[0], bb[1]), bb[2], bb[3], linewidth=1,
+            #                          edgecolor=self.plot_draw_styles[i]['color'],
+            #                                       facecolor=self.plot_draw_styles[i]['color'],
+            #                                       label=trackers[i]))
 
         if gt is not None:
             rect = patches.Rectangle((gt[0], gt[1]), gt[2], gt[3], linewidth=2, edgecolor='g',
@@ -107,11 +107,11 @@ class Display:
 
         self.ax.set_axis_off()
         self.ax.axis('equal')
-        plt.legend(handles=rect_handles, loc=4, borderaxespad=0., prop={'size': 23})
-        mode = 'manual' if self.pause_mode else 'auto     '
-        speed = self._get_speed()
-        self.fig.suptitle('Sequence: {}    Mode: {}    Speed: {:d}x'.format(self.sequence_name, mode, speed),
-                          fontsize=14)
+        # plt.legend(handles=rect_handles, loc=4, borderaxespad=0., prop={'size': 5})
+        # mode = 'manual' if self.pause_mode else 'auto     '
+        # speed = self._get_speed()
+        # self.fig.suptitle('Sequence: {}    Mode: {}    Speed: {:d}x'.format(self.sequence_name, mode, speed),
+        #                   fontsize=14)
         draw_figure(self.fig)
 
 
@@ -165,7 +165,7 @@ def playback_results(trackers, sequence):
     while display.active:
         frame_number = display.frame_number
         image = read_image(sequence.frames[frame_number])
-
+        print(frame_number)
         display.show(image, tracker_results[frame_number], tracker_names)
 
         time.sleep(0.01)

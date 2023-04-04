@@ -13,10 +13,12 @@ from pytracking.analysis.extract_results import extract_results
 def get_plot_draw_styles():
     plot_draw_style = [
                        # {'color': (0.0, 0.0, 0.0), 'line_style': '.'},
-                       {'color': (.898, 0.525, 0.254), 'line_style': '-'},
-                       {'color': (0.368, 0.627, .886), 'line_style': '-'},
-                       {'color': (1.0, 0.0, 0.0), 'line_style': '-'},
-                       {'color': (1.0, 0.0, 1.0), 'line_style': '-'},
+                       # {'color': (.898, 0.525, 0.254), 'line_style': '-'},
+                       # {'color': (0.368, 0.627, .886), 'line_style': '-'},
+                        {'color': (0.0, 0.0, 1.0), 'line_style': '-'},
+                        {'color': (0.0, 1.0, 0.0), 'line_style': '-'},
+                        {'color': (1.0, 0.0, 0.0), 'line_style': '-'},
+                        {'color': (1.0, 0.0, 1.0), 'line_style': '-'},
                        {'color': (0.0, 1.0, 1.0), 'line_style': '-'},
                        {'color': (0.5, 0.5, 0.5), 'line_style': '-'},
                        {'color': (136.0 / 255.0, 0.0, 21.0 / 255.0), 'line_style': '-'},

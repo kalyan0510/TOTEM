@@ -17,7 +17,7 @@ from pathlib import Path
 import torch
 
 
-_tracker_disp_colors = {1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 0, 0),
+_tracker_disp_colors = {1: (255, 0, 0), 2: (0, 255, 0), 3: (0, 0, 255),
                         4: (255, 255, 255), 5: (0, 0, 0), 6: (0, 255, 128),
                         7: (123, 123, 123), 8: (255, 128, 0), 9: (128, 0, 255)}
 
@@ -211,7 +211,7 @@ class Tracker:
             tracker.visdom_draw_tracking(image, bboxes, segmentation)
         elif tracker.params.visualization:
             self.visualize(image, bboxes, segmentation)
-        print(seq.frames)
+        # print(seq.frames)
         for frame_num, frame_path in tqdm(enumerate(seq.frames[1:], start=1), total=len(seq.frames)-1):
             while True:
                 if not self.pause_mode:
